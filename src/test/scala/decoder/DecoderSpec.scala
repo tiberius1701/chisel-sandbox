@@ -1,6 +1,6 @@
 // See README.md for license details.
 
-package gcd
+package decoder
 
 import chisel3._
 import chisel3.tester._
@@ -18,21 +18,27 @@ import chisel3.experimental.BundleLiterals._
   * sbt 'testOnly gcd.GcdDecoupledTester'
   * }}}
   */
-class GCDSpec extends FreeSpec with ChiselScalatestTester {
+class DecoderSpec extends FreeSpec with ChiselScalatestTester {
 
-  "Gcd should calculate proper greatest common denominator" in {
-    test(new DecoupledGcd(16)) { dut =>
+  "Decoder should output correct opcode" in {
+    test(new DecoupledDecoder) { dut =>
       dut.input.initSource()
       dut.input.setSourceClock(dut.clock)
       dut.output.initSink()
       dut.output.setSinkClock(dut.clock)
 
-      val testValues = for { x <- 0 to 10; y <- 0 to 10} yield (x, y)
-      val inputSeq = testValues.map { case (x, y) => (new GcdInputBundle(16)).Lit(_.value1 -> x.U, _.value2 -> y.U) }
-      val resultSeq = testValues.map { case (x, y) =>
-        (new GcdOutputBundle(16)).Lit(_.value1 -> x.U, _.value2 -> y.U, _.gcd -> BigInt(x).gcd(BigInt(y)).U)
+      //val testValues = for { x <- 0 to 10; y <- 0 to 10} yield (x, y)
+      val testValues = List(
+        "b_00001000000000000000000000000000",
+        "b_00001100000000000000000000000000",
+        "b_00010000000000000000000000000000"
+      )
+      val answerKey = List(0, 1, 678)
+      val inputSeq = testValues.map { x => (new DecoderInputBundle).Lit(_.insn -> x.U) }
+      val resultSeq = answerKey.map { x =>
+        (new DecoderOutputBundle).Lit(_.advance_state -> true.B, _.opcode -> x.U)
       }
-      println(os.pwd)
+
       fork {
         // push inputs into the calculator, stall for 11 cycles one third of the way
         val (seq1, seq2) = inputSeq.splitAt(resultSeq.length / 3)
